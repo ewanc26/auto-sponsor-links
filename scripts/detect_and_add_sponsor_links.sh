@@ -5,17 +5,20 @@ KO_Fi_BADGE='[![Ko-fi](https://img.shields.io/badge/Ko--fi-F16061?style=for-the-
 GH_SPONSORS_BADGE='[![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-30363D?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sponsors/ewanc26)'
 
 TARGET_USER="${TARGET_USER:-ewanc26}"
-SPOILER_BADGE_REGEX="github.com/sponsors/${TARGET_USER}"
+SPONSOR_LINK="github.com/sponsors/${TARGET_USER}"
 
 echo "Fetching all repositories owned by ${TARGET_USER}..."
-repos=$(gh repo list "${TARGET_USER}" --public --limit 200 --json nameWithOwner,isFork,archived,name,primaryBranch --jq '.[] | select(.isFork == false and .archived == false) | .nameWithOwner')
+repos=$(gh repo list "${TARGET_USER}" --public --limit 200 --json nameWithOwner,isFork,archived --jq '.[] | select(.isFork == false and .archived == false) | .nameWithOwner')
 
-echo "Processing ${#repos[@]} repositories (non-forked, non-archived)."
+repo_count=$(echo "$repos" | grep -c . || true)
+echo "Processing ${repo_count} repositories (non-forked, non-archived)."
 
 for repo in $repos; do
   echo "Checking ${repo}..."
 
-  if gh api repos/${repo}/readme -q content | base64 --decode 2>/dev/null | grep -q "${SPOILER_BADGE_REGEX}"; then
+  # Check if sponsor links already exist
+  readme_content=$(gh api "repos/${repo}/readme" --jq '.content' 2>/dev/null | base64 -d 2>/dev/null || echo "")
+  if echo "$readme_content" | grep -q "$SPONSOR_LINK"; then
     echo "  Already has sponsor links. Skipping."
     continue
   fi
@@ -23,12 +26,12 @@ for repo in $repos; do
   echo "  Missing sponsor links. Creating PR to add them."
 
   branch="add-sponsor-links"
-  default_branch=$(gh api repos/${repo} -q '.default_branch')
+  default_branch=$(gh api "repos/${repo}" --jq '.default_branch')
 
   git clone "git@github.com:${repo}.git" "/tmp/${repo//\//-}" 2>&1 | tail -1
   cd "/tmp/${repo//\//-}"
 
-  git checkout -b "$branch" "origin/$default_branch"
+  git checkout -b "$branch" "origin/${default_branch}"
 
   readme="README.md"
   if [ ! -f "$readme" ]; then
@@ -45,10 +48,10 @@ for repo in $repos; do
     --repo "$repo" \
     --title "Add sponsor links to README" \
     --body "Automatically adds Ko-fi and GitHub Sponsors links to the README file." \
-    --head "$branch"
+    --head "$branch" 2>/dev/null || echo "  PR may already exist."
 
-  echo "  PR created successfully: https://github.com/${repo}/pull/new/${branch}"
-  cd -
+  echo "  PR created or updated: https://github.com/${repo}/pull/new/${branch}"
+  cd - >/dev/null
   rm -rf "/tmp/${repo//\//-}"
 done
 
