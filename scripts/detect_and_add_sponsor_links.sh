@@ -8,7 +8,7 @@ TARGET_USER="${TARGET_USER:-ewanc26}"
 SPONSOR_LINK="github.com/sponsors/${TARGET_USER}"
 
 echo "Fetching all repositories owned by ${TARGET_USER}..."
-repos=$(gh repo list "${TARGET_USER}" --public --limit 200 --json nameWithOwner,isFork,archived --jq '.[] | select(.isFork == false and .archived == false) | .nameWithOwner')
+repos=$(gh repo list "${TARGET_USER}" --limit 200 --visibility=public --json nameWithOwner,isFork,isArchived --jq '.[] | select(.isFork == false and .isArchived == false) | .nameWithOwner')
 
 repo_count=$(echo "$repos" | grep -c . || true)
 echo "Processing ${repo_count} repositories (non-forked, non-archived)."
