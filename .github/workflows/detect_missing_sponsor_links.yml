@@ -1,0 +1,35 @@
+name: Detect and Add Sponsor Links
+
+on:
+  schedule:
+    - cron: "0 0 1 * *"  # Monthly at 00:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sponsor-links:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup GitHub CLI
+        use: actions/setup-gh@v2
+        with:
+          install-type: latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Detect missing sponsor links and create PRs
+        run: |
+          chmod +x scripts/detect_and_add_sponsor_links.sh
+          ./scripts/detect_and_add_sponsor_links.sh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
