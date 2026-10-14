@@ -19,12 +19,19 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y jq
 
+      # The default GITHUB_TOKEN only has access to this repository, so the
+      # scan of every other repo needs a PAT stored as SPONSOR_LINKS_TOKEN
+      # (contents + pull-requests write on the target repos).
       - name: Authenticate with GitHub CLI
-        run: gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
+        run: |
+          gh auth login --with-token <<< "${GH_TOKEN}"
+          gh auth setup-git
+        env:
+          GH_TOKEN: ${{ secrets.SPONSOR_LINKS_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Detect missing sponsor links and create PRs
         run: |
           chmod +x scripts/detect_and_add_sponsor_links.sh
           ./scripts/detect_and_add_sponsor_links.sh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SPONSOR_LINKS_TOKEN || secrets.GITHUB_TOKEN }}

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eo pipefail
 
 KO_Fi_BADGE='[![Ko-fi](https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/ewancroft)'
 GH_SPONSORS_BADGE='[![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-30363D?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sponsors/ewanc26)'
@@ -18,7 +18,7 @@ for repo in $repos; do
 
   # Check if sponsor links already exist
   readme_content=$(gh api "repos/${repo}/readme" --jq '.content' 2>/dev/null | base64 -d 2>/dev/null || echo "")
-  if echo "$readme_content" | grep -q "$SPONSOR_LINK"; then
+  if grep -q "$SPONSOR_LINK" <<< "$readme_content"; then
     echo "  Already has sponsor links. Skipping."
     continue
   fi
@@ -28,7 +28,9 @@ for repo in $repos; do
   branch="add-sponsor-links"
   default_branch=$(gh api "repos/${repo}" --jq '.default_branch')
 
-  git clone "git@github.com:${repo}.git" "/tmp/${repo//\//-}" 2>&1 | tail -1
+  # Clone over HTTPS using the gh token: the runner has no SSH key. The old
+  # `git clone ... | tail -1` hid the clone's exit status from `set -e`.
+  gh repo clone "${repo}" "/tmp/${repo//\//-}" -- --quiet
   cd "/tmp/${repo//\//-}"
 
   git checkout -b "$branch" "origin/${default_branch}"
